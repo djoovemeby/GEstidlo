@@ -1,0 +1,36 @@
+{
+  "name": "GEstidlo - Local Dev",
+  "values": [
+    {
+      "key": "host",
+      "value": "localhost",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "connex_engine_url",
+      "value": "http://{{host}}:9080",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "camunda_api_url",
+      "value": "http://{{host}}:9081",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "api_metier_url",
+      "value": "http://{{host}}:9082",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "bff_url",
+      "value": "http://{{host}}:9083",
+      "type": "default",
+      "enabled": true
+    }
+  ],
+  "_postman_variable_scope": "environment"
+}

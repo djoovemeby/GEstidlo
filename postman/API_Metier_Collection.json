@@ -1,0 +1,46 @@
+{
+  "info": {
+    "_postman_id": "c3a8c0c1-2d4e-4f5a-9a99-9b9c9d9e9f03",
+    "name": "GEstidlo - API Metier",
+    "description": "Business Logic API.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Actuator",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_metier_url}}/actuator/health",
+              "host": ["{{api_metier_url}}"],
+              "path": ["actuator", "health"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "OpenAPI",
+      "item": [
+        {
+          "name": "Get API Docs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_metier_url}}/v3/api-docs",
+              "host": ["{{api_metier_url}}"],
+              "path": ["v3", "api-docs"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
