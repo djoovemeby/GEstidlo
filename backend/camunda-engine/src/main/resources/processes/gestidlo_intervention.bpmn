@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+		xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+		xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+		xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+		xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+		id="Definitions_GEstiDlo"
+		targetNamespace="http://gestidlo/processes">
+
+	<bpmn:process id="gestidlo_intervention" name="GEstiDlo - Intervention" isExecutable="true" camunda:historyTimeToLive="180">
+		<bpmn:startEvent id="StartEvent_Alert" name="Alerte">
+			<bpmn:outgoing>Flow_To_Assign</bpmn:outgoing>
+		</bpmn:startEvent>
+
+		<bpmn:userTask id="Task_Assign" name="Affecter l'intervention" camunda:assignee="${assignee}">
+			<bpmn:incoming>Flow_To_Assign</bpmn:incoming>
+			<bpmn:outgoing>Flow_To_Intervene</bpmn:outgoing>
+		</bpmn:userTask>
+
+		<bpmn:userTask id="Task_Intervene" name="Intervention terrain">
+			<bpmn:incoming>Flow_To_Intervene</bpmn:incoming>
+			<bpmn:outgoing>Flow_To_Close</bpmn:outgoing>
+		</bpmn:userTask>
+
+		<bpmn:endEvent id="EndEvent_Close" name="Clôture">
+			<bpmn:incoming>Flow_To_Close</bpmn:incoming>
+		</bpmn:endEvent>
+
+		<bpmn:sequenceFlow id="Flow_To_Assign" sourceRef="StartEvent_Alert" targetRef="Task_Assign" />
+		<bpmn:sequenceFlow id="Flow_To_Intervene" sourceRef="Task_Assign" targetRef="Task_Intervene" />
+		<bpmn:sequenceFlow id="Flow_To_Close" sourceRef="Task_Intervene" targetRef="EndEvent_Close" />
+	</bpmn:process>
+
+	<bpmndi:BPMNDiagram id="BPMNDiagram_GEstiDlo_Intervention">
+		<bpmndi:BPMNPlane id="BPMNPlane_GEstiDlo_Intervention" bpmnElement="gestidlo_intervention">
+			<bpmndi:BPMNShape id="StartEvent_Alert_di" bpmnElement="StartEvent_Alert">
+				<dc:Bounds x="180" y="100" width="36" height="36" />
+			</bpmndi:BPMNShape>
+			<bpmndi:BPMNShape id="Task_Assign_di" bpmnElement="Task_Assign">
+				<dc:Bounds x="280" y="80" width="180" height="80" />
+			</bpmndi:BPMNShape>
+			<bpmndi:BPMNShape id="Task_Intervene_di" bpmnElement="Task_Intervene">
+				<dc:Bounds x="520" y="80" width="180" height="80" />
+			</bpmndi:BPMNShape>
+			<bpmndi:BPMNShape id="EndEvent_Close_di" bpmnElement="EndEvent_Close">
+				<dc:Bounds x="760" y="100" width="36" height="36" />
+			</bpmndi:BPMNShape>
+
+			<bpmndi:BPMNEdge id="Flow_To_Assign_di" bpmnElement="Flow_To_Assign">
+				<di:waypoint x="216" y="118" />
+				<di:waypoint x="280" y="118" />
+			</bpmndi:BPMNEdge>
+			<bpmndi:BPMNEdge id="Flow_To_Intervene_di" bpmnElement="Flow_To_Intervene">
+				<di:waypoint x="460" y="118" />
+				<di:waypoint x="520" y="118" />
+			</bpmndi:BPMNEdge>
+			<bpmndi:BPMNEdge id="Flow_To_Close_di" bpmnElement="Flow_To_Close">
+				<di:waypoint x="700" y="118" />
+				<di:waypoint x="760" y="118" />
+			</bpmndi:BPMNEdge>
+		</bpmndi:BPMNPlane>
+	</bpmndi:BPMNDiagram>
+</bpmn:definitions>
