@@ -39,7 +39,7 @@ echo "BFF started (PID: $PID_BFF) on port 9083"
 # 3. Start Frontend
 echo "Starting Angular Frontend..."
 cd frontend/spa
-ng serve &
+npx ng serve &
 PID_SPA=$!
 echo "Angular SPA started (PID: $PID_SPA) on port 4200"
 

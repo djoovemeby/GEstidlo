@@ -1,1 +1,259 @@
-/* You can add global styles to this file, and also import other style files */
+:root {
+  --bg: #f5f7fb;
+  --surface: #ffffff;
+  --text: #0f172a;
+  --muted: #64748b;
+
+  --primary: #2563eb;
+  --primary-600: #1d4ed8;
+  --danger: #dc2626;
+  --warning: #f59e0b;
+  --success: #16a34a;
+
+  --border-color: rgba(2, 6, 23, 0.12);
+  --border: 1px solid var(--border-color);
+  --radius: 12px;
+  --shadow: 0 10px 30px rgba(2, 6, 23, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    Segoe UI,
+    Roboto,
+    Helvetica,
+    Arial,
+    "Apple Color Emoji",
+    "Segoe UI Emoji";
+  color: var(--text);
+  background: radial-gradient(1200px 400px at 10% 0%, rgba(37, 99, 235, 0.10), transparent 60%),
+    radial-gradient(1200px 400px at 90% 0%, rgba(99, 102, 241, 0.08), transparent 60%),
+    var(--bg);
+}
+
+a {
+  color: inherit;
+}
+
+h2 {
+  font-size: 1.25rem;
+  margin: 0 0 1rem;
+}
+
+pre {
+  background: rgba(15, 23, 42, 0.04);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  padding: 0.75rem;
+  border-radius: 10px;
+  overflow: auto;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.table-wrap {
+  overflow: auto;
+  border-radius: var(--radius);
+}
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.85em;
+}
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.kpi {
+  border: var(--border);
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, rgba(37, 99, 235, 0.10), rgba(255, 255, 255, 0.0) 55%),
+    var(--surface);
+  box-shadow: var(--shadow);
+  padding: 0.9rem 1rem;
+}
+
+.kpi-label {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.kpi-value {
+  font-size: 1.6rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  margin-top: 0.25rem;
+}
+
+.kpi-sub {
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+}
+
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1.25rem;
+}
+
+.card {
+  border: var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: end;
+  margin-bottom: 0.75rem;
+}
+
+label {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+input,
+select {
+  padding: 0.5rem 0.6rem;
+  border: var(--border);
+  border-radius: 10px;
+  background: #fff;
+  min-width: 160px;
+  color: var(--text);
+}
+
+.btn {
+  appearance: none;
+  border: none;
+  border-radius: 10px;
+  padding: 0.55rem 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--primary);
+  color: #fff;
+  box-shadow: 0 6px 14px rgba(37, 99, 235, 0.25);
+}
+
+.btn:hover {
+  background: var(--primary-600);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn--secondary {
+  background: rgba(15, 23, 42, 0.06);
+  color: var(--text);
+  box-shadow: none;
+  border: 1px solid rgba(15, 23, 42, 0.10);
+}
+
+.btn--secondary:hover {
+  background: rgba(15, 23, 42, 0.10);
+}
+
+.btn--danger {
+  background: var(--danger);
+  box-shadow: 0 6px 14px rgba(220, 38, 38, 0.25);
+}
+
+.btn--danger:hover {
+  filter: brightness(0.95);
+}
+
+.table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.table th {
+  text-align: left;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: rgba(15, 23, 42, 0.03);
+}
+
+.table th,
+.table td {
+  padding: 0.65rem 0.75rem;
+  border-bottom: 1px solid rgba(2, 6, 23, 0.08);
+}
+
+.table tbody tr:hover {
+  background: rgba(37, 99, 235, 0.03);
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border: 1px solid rgba(2, 6, 23, 0.10);
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.badge--crit {
+  background: rgba(220, 38, 38, 0.12);
+  border-color: rgba(220, 38, 38, 0.25);
+  color: #7f1d1d;
+}
+
+.badge--warn {
+  background: rgba(245, 158, 11, 0.14);
+  border-color: rgba(245, 158, 11, 0.28);
+  color: #78350f;
+}
+
+.badge--ok {
+  background: rgba(22, 163, 74, 0.12);
+  border-color: rgba(22, 163, 74, 0.25);
+  color: #14532d;
+}
