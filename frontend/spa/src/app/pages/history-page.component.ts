@@ -1,8 +1,10 @@
-import { Component } from '@angular/core';
+import { Component, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { BffApiService } from '../api/bff-api.service';
 import { TranslatePipe } from '../i18n/translate.pipe';
+import { CodeItemDto, MeasurementTypesService } from '../measurement-types.service';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-history-page',
@@ -14,15 +16,13 @@ import { TranslatePipe } from '../i18n/translate.pipe';
     <section class="card">
       <div class="row">
         <label>
-          Point
+          {{ 'table.point' | t }}
           <input [(ngModel)]="pointId" />
         </label>
         <label>
-          Type
+          {{ 'table.type' | t }}
           <select [(ngModel)]="type">
-            <option value="PRESSURE">PRESSURE</option>
-            <option value="LEVEL">LEVEL</option>
-            <option value="FLOW">FLOW</option>
+            <option *ngFor="let t of measurementTypeList" [value]="t.code">{{ typeLabel(t.code) }}</option>
           </select>
         </label>
         <label>
@@ -41,10 +41,10 @@ import { TranslatePipe } from '../i18n/translate.pipe';
       <table class="table">
         <thead>
           <tr>
-            <th>Timestamp</th>
-            <th>Value</th>
-            <th>Unit</th>
-            <th>Sensor</th>
+            <th>{{ 'table.timestamp' | t }}</th>
+            <th>{{ 'table.value' | t }}</th>
+            <th>{{ 'table.unit' | t }}</th>
+            <th>{{ 'table.sensor' | t }}</th>
           </tr>
         </thead>
         <tbody>
@@ -62,17 +62,39 @@ import { TranslatePipe } from '../i18n/translate.pipe';
   `,
   styles: []
 })
-export class HistoryPageComponent {
+export class HistoryPageComponent implements OnDestroy {
   pointId = 'POINT-001';
-  type = 'PRESSURE' as 'PRESSURE' | 'FLOW' | 'LEVEL';
+  type = 'PRESSURE';
   from = new Date(Date.now() - 1000 * 60 * 60).toISOString();
   to = new Date().toISOString();
 
+  measurementTypeList: CodeItemDto[] = [];
   data: any;
 
-  constructor(private readonly api: BffApiService) {}
+  private measurementTypesSubscription?: Subscription;
+
+  constructor(
+    private readonly api: BffApiService,
+    private readonly measurementTypes: MeasurementTypesService
+  ) {
+    this.measurementTypes.ensureLoaded().subscribe();
+    this.measurementTypesSubscription = this.measurementTypes.stream().subscribe((types) => {
+      this.measurementTypeList = (types ?? []).filter((t) => t.active);
+      if (!this.measurementTypeList.some((t) => t.code === this.type) && this.measurementTypeList.length > 0) {
+        this.type = this.measurementTypeList[0].code;
+      }
+    });
+  }
 
   load() {
     this.api.history(this.pointId, this.type, this.from, this.to).subscribe((d) => (this.data = d));
+  }
+
+  typeLabel(type: string): string {
+    return this.measurementTypes.label(type);
+  }
+
+  ngOnDestroy(): void {
+    this.measurementTypesSubscription?.unsubscribe();
   }
 }

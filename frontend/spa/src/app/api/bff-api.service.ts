@@ -26,7 +26,7 @@ export class BffApiService {
   ingestMeasurement(payload: {
     pointId: string;
     sensorId: string;
-    type: 'PRESSURE' | 'FLOW' | 'LEVEL';
+    type: string;
     value: number;
     unit: string;
     timestamp?: string;
@@ -60,10 +60,61 @@ export class BffApiService {
     return this.http.post<any>(`${this.baseUrl}/tickets/${id}/assign`, { assignee });
   }
 
-  history(pointId: string, type: 'PRESSURE' | 'FLOW' | 'LEVEL', from: string, to: string) {
+  history(pointId: string, type: string, from: string, to: string) {
     return this.http.get<any>(`${this.baseUrl}/history/points/${pointId}`, {
       params: new HttpParams().set('type', type).set('from', from).set('to', to)
     });
+  }
+
+  referenceCodeList(listName: string) {
+    return this.http.get<any[]>(`${this.baseUrl}/reference/codelists/${listName}`);
+  }
+
+  referencePoints() {
+    return this.http.get<any[]>(`${this.baseUrl}/reference/points`);
+  }
+
+  upsertReferencePoint(
+    id: string,
+    payload: {
+      name?: string | null;
+      type?: string | null;
+      description?: string | null;
+      active?: boolean | null;
+    }
+  ) {
+    return this.http.put<any>(`${this.baseUrl}/reference/points/${id}`, payload);
+  }
+
+  deleteReferencePoint(id: string) {
+    return this.http.delete<void>(`${this.baseUrl}/reference/points/${id}`);
+  }
+
+  referenceThresholds() {
+    return this.http.get<any[]>(`${this.baseUrl}/reference/thresholds`);
+  }
+
+  upsertThreshold(type: string, payload: { minWarn?: number | null; minCrit?: number | null }) {
+    return this.http.put<any>(`${this.baseUrl}/reference/thresholds/${type}`, payload);
+  }
+
+  upsertCodeItem(
+    listName: string,
+    code: string,
+    payload: {
+      labelFr?: string | null;
+      labelHt?: string | null;
+      labelEn?: string | null;
+      color?: string | null;
+      sortOrder?: number | null;
+      active?: boolean | null;
+    }
+  ) {
+    return this.http.put<any>(`${this.baseUrl}/reference/codelists/${listName}/${code}`, payload);
+  }
+
+  deleteCodeItem(listName: string, code: string) {
+    return this.http.delete<void>(`${this.baseUrl}/reference/codelists/${listName}/${code}`);
   }
 
   processDefinitions() {

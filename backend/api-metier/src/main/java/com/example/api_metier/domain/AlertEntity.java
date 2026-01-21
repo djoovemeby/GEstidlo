@@ -24,9 +24,8 @@ public class AlertEntity {
 	@Column(nullable = false)
 	private String sensorId;
 
-	@Enumerated(EnumType.STRING)
 	@Column(nullable = false)
-	private MeasurementType type;
+	private String type;
 
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false)
@@ -48,7 +47,7 @@ public class AlertEntity {
 	protected AlertEntity() {
 	}
 
-	public AlertEntity(String pointId, String sensorId, MeasurementType type, AlertSeverity severity,
+	public AlertEntity(String pointId, String sensorId, String type, AlertSeverity severity,
 			AlertStatus status, String message, Instant openedAt, Instant updatedAt) {
 		this.pointId = pointId;
 		this.sensorId = sensorId;
@@ -72,7 +71,7 @@ public class AlertEntity {
 		return sensorId;
 	}
 
-	public MeasurementType getType() {
+	public String getType() {
 		return type;
 	}
 
@@ -112,4 +111,3 @@ public class AlertEntity {
 		this.updatedAt = updatedAt;
 	}
 }
-

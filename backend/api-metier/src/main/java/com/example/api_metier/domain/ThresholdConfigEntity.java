@@ -2,8 +2,6 @@ package com.example.api_metier.domain;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
@@ -12,9 +10,8 @@ import jakarta.persistence.Table;
 public class ThresholdConfigEntity {
 
 	@Id
-	@Enumerated(EnumType.STRING)
 	@Column(nullable = false)
-	private MeasurementType type;
+	private String type;
 
 	@Column
 	private Double minWarn;
@@ -25,13 +22,13 @@ public class ThresholdConfigEntity {
 	protected ThresholdConfigEntity() {
 	}
 
-	public ThresholdConfigEntity(MeasurementType type, Double minWarn, Double minCrit) {
+	public ThresholdConfigEntity(String type, Double minWarn, Double minCrit) {
 		this.type = type;
 		this.minWarn = minWarn;
 		this.minCrit = minCrit;
 	}
 
-	public MeasurementType getType() {
+	public String getType() {
 		return type;
 	}
 
@@ -51,4 +48,3 @@ public class ThresholdConfigEntity {
 		this.minCrit = minCrit;
 	}
 }
-

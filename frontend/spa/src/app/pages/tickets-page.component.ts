@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { BffApiService } from '../api/bff-api.service';
 import { TranslatePipe } from '../i18n/translate.pipe';
@@ -8,6 +8,8 @@ import { ProfileService } from '../profile.service';
 import { PointsService } from '../points.service';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { RefreshService } from '../refresh.service';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-tickets-page',
@@ -23,13 +25,12 @@ import { RouterLink } from '@angular/router';
           <input [(ngModel)]="technician" (ngModelChange)="saveTechnician()" />
         </label>
         <label>
-          Vue
+          {{ 'common.view' | t }}
           <select [(ngModel)]="viewMode">
             <option value="all">{{ 'tickets.view.all' | t }}</option>
             <option value="mine">{{ 'tickets.view.mine' | t }}</option>
           </select>
         </label>
-        <button class="btn btn--secondary" (click)="reload()">{{ 'common.refresh' | t }}</button>
       </div>
     </section>
 
@@ -102,28 +103,45 @@ import { RouterLink } from '@angular/router';
       </tbody>
     </table>
 
-    <p *ngIf="tickets && tickets.length === 0">{{ 'tickets.none' | t }}</p>
+    <div class="empty-state" *ngIf="tickets && tickets.length === 0">
+      <div>
+        <div class="empty-title">{{ 'tickets.none' | t }}</div>
+        <div class="muted">{{ 'empty.tip.alertsToTickets' | t }}</div>
+      </div>
+      <a class="btn btn--secondary" routerLink="/alerts">{{ 'empty.openAlerts' | t }}</a>
+    </div>
   `,
   styles: []
 })
-export class TicketsPageComponent {
+export class TicketsPageComponent implements OnDestroy {
   tickets: any[] = [];
   viewMode: 'all' | 'mine' = 'all';
   technician: string;
+
+  private refreshSubscription?: Subscription;
 
   constructor(
     private readonly api: BffApiService,
     private readonly toast: ToastService,
     private readonly i18n: I18nService,
     private readonly profile: ProfileService,
-    private readonly points: PointsService
+    private readonly points: PointsService,
+    private readonly refresh: RefreshService
   ) {
     this.technician = this.profile.getTechnicianName();
     this.reload();
+    this.refreshSubscription = this.refresh.refresh$.subscribe((e) => this.reload(e.reason === 'manual'));
   }
 
-  reload() {
-    this.api.tickets().subscribe((t) => (this.tickets = t));
+  reload(showErrorToast = false) {
+    this.api.tickets().subscribe({
+      next: (t) => (this.tickets = t),
+      error: () => {
+        if (showErrorToast) {
+          this.toast.push('error', this.i18n.t('toast.failed'));
+        }
+      }
+    });
   }
 
   saveTechnician() {
@@ -179,5 +197,9 @@ export class TicketsPageComponent {
       },
       error: () => this.toast.push('error', this.i18n.t('toast.failed'))
     });
+  }
+
+  ngOnDestroy(): void {
+    this.refreshSubscription?.unsubscribe();
   }
 }

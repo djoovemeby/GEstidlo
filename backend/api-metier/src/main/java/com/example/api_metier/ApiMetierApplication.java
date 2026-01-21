@@ -1,18 +1,19 @@
 package com.example.api_metier;
 
-import com.example.api_metier.domain.MeasurementType;
 import com.example.api_metier.domain.PointRefEntity;
-import com.example.api_metier.domain.PointType;
 import com.example.api_metier.domain.ReferenceCodeItemEntity;
 import com.example.api_metier.domain.ThresholdConfigEntity;
+import com.example.api_metier.domain.UserAccountEntity;
 import com.example.api_metier.repo.PointRefRepository;
 import com.example.api_metier.repo.ReferenceCodeItemRepository;
 import com.example.api_metier.repo.ThresholdConfigRepository;
+import com.example.api_metier.repo.UserAccountRepository;
 import java.util.List;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 @SpringBootApplication
 public class ApiMetierApplication {
@@ -25,17 +26,23 @@ public class ApiMetierApplication {
 	CommandLineRunner seedReferenceData(
 			PointRefRepository points,
 			ThresholdConfigRepository thresholds,
-			ReferenceCodeItemRepository codeItems) {
+			ReferenceCodeItemRepository codeItems,
+			UserAccountRepository users,
+			PasswordEncoder passwordEncoder) {
 		return args -> {
+			seedUserIfMissing(users, passwordEncoder, "admin", "admin", "ADMIN");
+			seedUserIfMissing(users, passwordEncoder, "tech", "tech", "TECH");
+			seedUserIfMissing(users, passwordEncoder, "operator", "operator", "OPERATOR");
+
 			if (points.count() == 0) {
-				points.save(new PointRefEntity("POINT-001", "KIOSK-01", PointType.KIOSK, "Kiosque principal", true));
-				points.save(new PointRefEntity("POINT-002", "SCHOOL", PointType.SCHOOL, "École / point critique", true));
-				points.save(new PointRefEntity("POINT-003", "TANK", PointType.TANK, "Réservoir", true));
+				points.save(new PointRefEntity("POINT-001", "KIOSK-01", "KIOSK", "Kiosque principal", true));
+				points.save(new PointRefEntity("POINT-002", "SCHOOL", "SCHOOL", "École / point critique", true));
+				points.save(new PointRefEntity("POINT-003", "TANK", "TANK", "Réservoir", true));
 			}
 
 			if (thresholds.count() == 0) {
-				thresholds.save(new ThresholdConfigEntity(MeasurementType.PRESSURE, 2.0, 1.0));
-				thresholds.save(new ThresholdConfigEntity(MeasurementType.LEVEL, null, 10.0));
+				thresholds.save(new ThresholdConfigEntity("PRESSURE", 2.0, 1.0));
+				thresholds.save(new ThresholdConfigEntity("LEVEL", null, 10.0));
 			}
 
 			seedCodeList(codeItems, "ALERT_SEVERITY", List.of(
@@ -72,6 +79,22 @@ public class ApiMetierApplication {
 			return;
 		}
 		repo.saveAll(items);
+	}
+
+	private void seedUserIfMissing(
+			UserAccountRepository repo,
+			PasswordEncoder passwordEncoder,
+			String username,
+			String rawPassword,
+			String roles) {
+		if (repo.existsById(username)) {
+			return;
+		}
+		repo.save(new UserAccountEntity(
+				username,
+				passwordEncoder.encode(rawPassword),
+				roles,
+				true));
 	}
 
 }

@@ -7,5 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface TicketRepository extends JpaRepository<TicketEntity, Long> {
 	List<TicketEntity> findByStatus(TicketStatus status);
-}
 
+	long countByPointId(String pointId);
+}

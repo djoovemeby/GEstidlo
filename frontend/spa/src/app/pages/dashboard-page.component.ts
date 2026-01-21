@@ -10,6 +10,9 @@ import { I18nService } from '../i18n/i18n.service';
 import { RouterLink } from '@angular/router';
 import { ProfileService } from '../profile.service';
 import { PointsService } from '../points.service';
+import { RefreshService } from '../refresh.service';
+import { Subscription } from 'rxjs';
+import { CodeItemDto, MeasurementTypesService } from '../measurement-types.service';
 
 type AlertDto = {
   id: number;
@@ -47,20 +50,6 @@ type DashboardDto = {
   ],
   template: `
     <h2>{{ 'nav.dashboard' | t }}</h2>
-
-    <section class="card" *ngIf="dashboard">
-      <div class="row">
-        <label>
-          {{ 'dashboard.autoRefresh' | t }}
-          <select [(ngModel)]="autoRefresh" (ngModelChange)="saveAutoRefresh()">
-            <option [ngValue]="true">{{ 'common.on' | t }}</option>
-            <option [ngValue]="false">{{ 'common.off' | t }}</option>
-          </select>
-        </label>
-
-        <button class="btn btn--secondary" (click)="reload()">{{ 'common.refresh' | t }}</button>
-      </div>
-    </section>
 
     <section class="grid-1" *ngIf="dashboard">
         <section class="kpi-grid">
@@ -147,9 +136,7 @@ type DashboardDto = {
               <label>
                 {{ 'dashboard.simulate.type' | t }}
                 <select [(ngModel)]="form.type">
-                  <option value="PRESSURE">PRESSURE</option>
-                  <option value="LEVEL">LEVEL</option>
-                  <option value="FLOW">FLOW</option>
+                  <option *ngFor="let t of measurementTypeList" [value]="t.code">{{ typeLabel(t.code) }}</option>
                 </select>
               </label>
               <label>
@@ -191,7 +178,7 @@ type DashboardDto = {
                 >
               </div>
 
-              <div class="muted" style="margin-top: 0.35rem">{{ a.type }}</div>
+              <div class="muted" style="margin-top: 0.35rem">{{ typeLabel(a.type) }}</div>
               <div style="margin-top: 0.35rem">{{ a.message }}</div>
 
               <div class="actions" style="margin-top: 0.65rem">
@@ -224,16 +211,17 @@ export class DashboardPageComponent implements OnDestroy {
   };
 
   pointList: Array<{ id: string; name: string }> = [];
+  measurementTypeList: CodeItemDto[] = [];
 
-  autoRefresh = true;
-  private readonly autoRefreshKey = 'gestidlo.dashboard.autoRefresh';
-  private refreshInterval?: number;
+  private refreshSubscription?: Subscription;
+  private measurementTypesSubscription?: Subscription;
+  private pointsSubscription?: Subscription;
 
   technician = 'tech';
   form = {
     pointId: 'POINT-001',
     sensorId: 'SENSOR-001',
-    type: 'PRESSURE' as 'PRESSURE' | 'FLOW' | 'LEVEL',
+    type: 'PRESSURE',
     value: 1.5,
     unit: 'bar'
   };
@@ -243,40 +231,57 @@ export class DashboardPageComponent implements OnDestroy {
     private readonly toast: ToastService,
     private readonly i18n: I18nService,
     private readonly profile: ProfileService,
-    private readonly points: PointsService
+    private readonly points: PointsService,
+    private readonly measurementTypes: MeasurementTypesService,
+    private readonly refresh: RefreshService
   ) {
-    this.autoRefresh = this.loadAutoRefresh();
     this.technician = this.profile.getTechnicianName();
-    this.pointList = this.points.all().map((p) => ({ id: p.id, name: p.name }));
-    if (this.pointList.length > 0) {
-      this.form.pointId = this.pointList[0].id;
-    }
+
+    this.points.ensureLoaded().subscribe();
+    this.pointsSubscription = this.points.stream().subscribe((points) => {
+      this.pointList = (points ?? []).filter((p) => p.active).map((p) => ({ id: p.id, name: p.name }));
+      if (!this.pointList.some((p) => p.id === this.form.pointId) && this.pointList.length > 0) {
+        this.form.pointId = this.pointList[0].id;
+      }
+    });
+
     this.kpiHistory = this.loadHistory();
+
+    this.measurementTypes.ensureLoaded().subscribe();
+    this.measurementTypesSubscription = this.measurementTypes.stream().subscribe((types) => {
+      this.measurementTypeList = (types ?? []).filter((t) => t.active);
+      if (!this.measurementTypeList.some((t) => t.code === this.form.type) && this.measurementTypeList.length > 0) {
+        this.form.type = this.measurementTypeList[0].code;
+      }
+    });
+
     this.reload();
-    this.applyAutoRefresh();
+
+    this.refreshSubscription = this.refresh.refresh$.subscribe((e) => {
+      this.reload(e.reason === 'manual');
+    });
   }
 
   saveTechnician() {
     this.profile.setTechnicianName(this.technician);
   }
 
-  saveAutoRefresh() {
-    localStorage.setItem(this.autoRefreshKey, String(this.autoRefresh));
-    this.applyAutoRefresh();
+  typeLabel(type: string): string {
+    return this.measurementTypes.label(type);
   }
 
-  private loadAutoRefresh(): boolean {
-    const raw = localStorage.getItem(this.autoRefreshKey);
-    if (raw === null) {
-      return true;
-    }
-    return raw === 'true';
-  }
 
-  reload() {
-    this.api.dashboard().subscribe((d) => {
-      this.dashboard = d as DashboardDto;
-      this.pushHistory();
+  reload(showErrorToast = false) {
+    this.api.dashboard().subscribe({
+      next: (d) => {
+        this.dashboard = d as DashboardDto;
+        this.pushHistory();
+      },
+      error: () => {
+        if (showErrorToast) {
+          this.toast.push('error', this.i18n.t('toast.failed'));
+        }
+      }
     });
   }
 
@@ -303,19 +308,6 @@ export class DashboardPageComponent implements OnDestroy {
       },
       error: () => this.toast.push('error', this.i18n.t('toast.failed'))
     });
-  }
-
-  applyAutoRefresh() {
-    if (this.refreshInterval) {
-      window.clearInterval(this.refreshInterval);
-      this.refreshInterval = undefined;
-    }
-    if (!this.autoRefresh) {
-      return;
-    }
-    this.refreshInterval = window.setInterval(() => {
-      this.reload();
-    }, 5000);
   }
 
   kpiSeries(key: 'alerts' | 'tickets' | 'process' | 'points'): number[] {
@@ -375,8 +367,8 @@ export class DashboardPageComponent implements OnDestroy {
   }
 
   ngOnDestroy(): void {
-    if (this.refreshInterval) {
-      window.clearInterval(this.refreshInterval);
-    }
+    this.refreshSubscription?.unsubscribe();
+    this.measurementTypesSubscription?.unsubscribe();
+    this.pointsSubscription?.unsubscribe();
   }
 }

@@ -109,34 +109,50 @@ public class BffController {
 	}
 
 	@GetMapping("/process-definitions")
-	public JsonNode processDefinitions() {
-		return camundaApi.get().uri("/api/process-definitions").retrieve().body(JsonNode.class);
+	public Object processDefinitions() {
+		try {
+			return camundaApi.get().uri("/api/process-definitions").retrieve().body(JsonNode.class);
+		} catch (Exception e) {
+			return java.util.List.of();
+		}
 	}
 
 	@PostMapping("/process-instances/{key}/start")
-	public JsonNode startProcess(@PathVariable("key") String key, @RequestBody(required = false) Map<String, Object> body) {
-		return camundaApi.post()
-				.uri("/api/process-instances/{key}/start", key)
-				.body(body == null ? Map.of() : body)
-				.retrieve()
-				.body(JsonNode.class);
+	public Object startProcess(@PathVariable("key") String key, @RequestBody(required = false) Map<String, Object> body) {
+		try {
+			return camundaApi.post()
+					.uri("/api/process-instances/{key}/start", key)
+					.body(body == null ? Map.of() : body)
+					.retrieve()
+					.body(JsonNode.class);
+		} catch (Exception e) {
+			return Map.of("status", "DOWN", "error", e.getClass().getSimpleName());
+		}
 	}
 
 	@GetMapping("/tasks")
-	public JsonNode tasks(@RequestParam("processInstanceId") String processInstanceId) {
-		return camundaApi.get()
-				.uri("/api/tasks?processInstanceId={id}", processInstanceId)
-				.retrieve()
-				.body(JsonNode.class);
+	public Object tasks(@RequestParam("processInstanceId") String processInstanceId) {
+		try {
+			return camundaApi.get()
+					.uri("/api/tasks?processInstanceId={id}", processInstanceId)
+					.retrieve()
+					.body(JsonNode.class);
+		} catch (Exception e) {
+			return java.util.List.of();
+		}
 	}
 
 	@PostMapping("/tasks/{id}/complete")
 	public void completeTask(@PathVariable("id") String taskId, @RequestBody(required = false) Map<String, Object> body) {
-		camundaApi.post()
-				.uri("/api/tasks/{id}/complete", taskId)
-				.body(body == null ? Map.of() : body)
-				.retrieve()
-				.toBodilessEntity();
+		try {
+			camundaApi.post()
+					.uri("/api/tasks/{id}/complete", taskId)
+					.body(body == null ? Map.of() : body)
+					.retrieve()
+					.toBodilessEntity();
+		} catch (Exception ignored) {
+			// no-op
+		}
 	}
 
 	@GetMapping("/reference/points")
