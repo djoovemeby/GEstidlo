@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { BffApiService } from '../api/bff-api.service';
+import { TranslatePipe } from '../i18n/translate.pipe';
 
 type ProcessDefinition = {
   id: string;
@@ -21,15 +22,15 @@ type CamundaTask = {
 @Component({
   selector: 'app-processes-page',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, TranslatePipe],
   template: `
-    <h2>Process Camunda</h2>
+    <h2>{{ 'processes.title' | t }}</h2>
 
     <section class="card">
       <div class="row">
-        <button class="btn btn--secondary" (click)="reload()">Rafraîchir</button>
+        <button class="btn btn--secondary" (click)="reload()">{{ 'common.refresh' | t }}</button>
         <label>
-          Assignee (pour la tâche "Affecter")
+          {{ 'processes.assignee' | t }}
           <input [(ngModel)]="assignee" />
         </label>
       </div>
@@ -50,7 +51,7 @@ type CamundaTask = {
               <td>{{ d.name || '-' }}</td>
               <td>{{ d.version || '-' }}</td>
               <td class="actions">
-                <button class="btn" (click)="start(d.key)">Démarrer</button>
+                <button class="btn" (click)="start(d.key)">{{ 'processes.start' | t }}</button>
               </td>
             </tr>
           </tbody>
@@ -65,11 +66,11 @@ type CamundaTask = {
 
       <div class="row">
         <label>
-          Process Instance Id
+          {{ 'processes.instance' | t }}
           <input [(ngModel)]="processInstanceId" placeholder="ex: 6109d9a2-f5b0-11f0-a5a1-..." />
         </label>
         <button class="btn btn--secondary" (click)="loadTasks()" [disabled]="!processInstanceId">
-          Charger tâches
+          {{ 'processes.loadTasks' | t }}
         </button>
       </div>
 
@@ -92,7 +93,7 @@ type CamundaTask = {
               <td>{{ t.assignee || '-' }}</td>
               <td>{{ t.created || '-' }}</td>
               <td class="actions">
-                <button class="btn" (click)="complete(t.id)">Compléter</button>
+                <button class="btn" (click)="complete(t.id)">{{ 'processes.complete' | t }}</button>
               </td>
             </tr>
           </tbody>
@@ -146,4 +147,3 @@ export class ProcessesPageComponent {
     this.api.completeTask(taskId).subscribe(() => this.loadTasks());
   }
 }
-

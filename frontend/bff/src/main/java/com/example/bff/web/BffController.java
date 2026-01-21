@@ -4,12 +4,16 @@ import com.fasterxml.jackson.databind.JsonNode;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestClient;
 
@@ -52,8 +56,16 @@ public class BffController {
 	}
 
 	@GetMapping("/realtime/points")
-	public JsonNode realtime() {
-		return metier.get().uri("/api/realtime/points").retrieve().body(JsonNode.class);
+	public JsonNode realtime(@RequestParam(name = "pointIds", required = false) java.util.List<String> pointIds) {
+		if (pointIds == null || pointIds.isEmpty()) {
+			return metier.get().uri("/api/realtime/points").retrieve().body(JsonNode.class);
+		}
+		StringBuilder uri = new StringBuilder("/api/realtime/points");
+		for (int i = 0; i < pointIds.size(); i++) {
+			uri.append(i == 0 ? "?" : "&");
+			uri.append("pointIds=").append(pointIds.get(i));
+		}
+		return metier.get().uri(uri.toString()).retrieve().body(JsonNode.class);
 	}
 
 	@GetMapping("/history/points/{pointId}")
@@ -91,6 +103,11 @@ public class BffController {
 		return metier.post().uri("/api/tickets/{id}/advance", id).retrieve().body(JsonNode.class);
 	}
 
+	@PostMapping("/tickets/{id}/assign")
+	public JsonNode assignTicket(@PathVariable("id") Long id, @RequestBody Map<String, Object> body) {
+		return metier.post().uri("/api/tickets/{id}/assign", id).body(body).retrieve().body(JsonNode.class);
+	}
+
 	@GetMapping("/process-definitions")
 	public JsonNode processDefinitions() {
 		return camundaApi.get().uri("/api/process-definitions").retrieve().body(JsonNode.class);
@@ -120,6 +137,64 @@ public class BffController {
 				.body(body == null ? Map.of() : body)
 				.retrieve()
 				.toBodilessEntity();
+	}
+
+	@GetMapping("/reference/points")
+	public JsonNode referencePoints() {
+		return metier.get().uri("/api/reference/points").retrieve().body(JsonNode.class);
+	}
+
+	@PutMapping("/reference/points/{id}")
+	public JsonNode upsertReferencePoint(@PathVariable("id") String id, @RequestBody Map<String, Object> body) {
+		return metier.put().uri("/api/reference/points/{id}", id).body(body).retrieve().body(JsonNode.class);
+	}
+
+	@DeleteMapping("/reference/points/{id}")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void deleteReferencePoint(@PathVariable("id") String id) {
+		metier.delete().uri("/api/reference/points/{id}", id).retrieve().toBodilessEntity();
+	}
+
+	@GetMapping("/reference/thresholds")
+	public JsonNode referenceThresholds() {
+		return metier.get().uri("/api/reference/thresholds").retrieve().body(JsonNode.class);
+	}
+
+	@PutMapping("/reference/thresholds/{type}")
+	public JsonNode upsertThreshold(@PathVariable("type") String type, @RequestBody Map<String, Object> body) {
+		return metier.put()
+				.uri("/api/reference/thresholds/{type}", type)
+				.body(body)
+				.retrieve()
+				.body(JsonNode.class);
+	}
+
+	@GetMapping("/reference/codelists")
+	public JsonNode referenceCodeLists() {
+		return metier.get().uri("/api/reference/codelists").retrieve().body(JsonNode.class);
+	}
+
+	@GetMapping("/reference/codelists/{listName}")
+	public JsonNode referenceCodeList(@PathVariable("listName") String listName) {
+		return metier.get().uri("/api/reference/codelists/{listName}", listName).retrieve().body(JsonNode.class);
+	}
+
+	@PutMapping("/reference/codelists/{listName}/{code}")
+	public JsonNode upsertCodeItem(
+			@PathVariable("listName") String listName,
+			@PathVariable("code") String code,
+			@RequestBody Map<String, Object> body) {
+		return metier.put()
+				.uri("/api/reference/codelists/{listName}/{code}", listName, code)
+				.body(body)
+				.retrieve()
+				.body(JsonNode.class);
+	}
+
+	@DeleteMapping("/reference/codelists/{listName}/{code}")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void deleteCodeItem(@PathVariable("listName") String listName, @PathVariable("code") String code) {
+		metier.delete().uri("/api/reference/codelists/{listName}/{code}", listName, code).retrieve().toBodilessEntity();
 	}
 
 	private Object safeGetJson(RestClient client, String uri) {

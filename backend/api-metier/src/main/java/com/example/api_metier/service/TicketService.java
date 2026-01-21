@@ -35,9 +35,19 @@ public class TicketService {
 			throw new IllegalStateException("Cannot create ticket from CLOSED alert");
 		}
 
+		// If an alert becomes a ticket, we consider it handled (acknowledged).
+		if (alert.getStatus() == AlertStatus.ACTIVE) {
+			alert.setStatus(AlertStatus.ACK);
+			alert.setUpdatedAt(Instant.now());
+			alerts.save(alert);
+		}
+
 		Instant now = Instant.now();
+		TicketStatus initialStatus = request.assignee() != null && !request.assignee().isBlank()
+				? TicketStatus.ASSIGNED
+				: TicketStatus.OPEN;
 		TicketEntity ticket = new TicketEntity(
-				TicketStatus.OPEN,
+				initialStatus,
 				alert.getId(),
 				alert.getPointId(),
 				alert.getSensorId(),
@@ -98,6 +108,45 @@ public class TicketService {
 			} else {
 				ticket.setStatus(TicketStatus.ASSIGNED);
 			}
+		}
+		ticket.setUpdatedAt(Instant.now());
+		return tickets.save(ticket);
+	}
+
+	@Transactional
+	public TicketEntity assign(Long ticketId, String assignee) {
+		TicketEntity ticket = tickets.findById(ticketId)
+				.orElseThrow(() -> new IllegalArgumentException("Unknown ticketId " + ticketId));
+		if (ticket.getStatus() == TicketStatus.CLOSED) {
+			return ticket;
+		}
+		if (assignee == null || assignee.isBlank()) {
+			throw new IllegalArgumentException("assignee is required");
+		}
+
+		// Update Camunda current task assignee (best effort)
+		if (ticket.getCamundaProcessInstanceId() != null && !ticket.getCamundaProcessInstanceId().isBlank()) {
+			try {
+				JsonNode tasks = camundaApi.get()
+						.uri("/api/tasks?processInstanceId={id}", ticket.getCamundaProcessInstanceId())
+						.retrieve()
+						.body(JsonNode.class);
+				if (tasks != null && tasks.isArray() && !tasks.isEmpty()) {
+					String taskId = tasks.get(0).get("id").asText();
+					camundaApi.post()
+							.uri("/api/tasks/{id}/assignee", taskId)
+							.body(Map.of("userId", assignee))
+							.retrieve()
+							.toBodilessEntity();
+				}
+			} catch (Exception ignored) {
+				// best effort
+			}
+		}
+
+		ticket.setAssignee(assignee);
+		if (ticket.getStatus() == TicketStatus.OPEN) {
+			ticket.setStatus(TicketStatus.ASSIGNED);
 		}
 		ticket.setUpdatedAt(Instant.now());
 		return tickets.save(ticket);

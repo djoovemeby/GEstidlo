@@ -70,6 +70,16 @@ public class CamundaEngineProxyController {
 				.toBodilessEntity();
 	}
 
+	@PostMapping(path = "/tasks/{id}/assignee", consumes = MediaType.APPLICATION_JSON_VALUE)
+	public void assignTask(@PathVariable("id") String taskId, @RequestBody Map<String, Object> payload) {
+		camunda.post()
+				.uri("task/{id}/assignee", taskId)
+				.contentType(MediaType.APPLICATION_JSON)
+				.body(payload)
+				.retrieve()
+				.toBodilessEntity();
+	}
+
 	private JsonNode toJson(String json) {
 		try {
 			return objectMapper.readTree(json);

@@ -11,6 +11,18 @@ export class BffApiService {
     return this.http.get<any>(`${this.baseUrl}/dashboard`);
   }
 
+  health() {
+    return this.http.get<any>(`${this.baseUrl}/health`);
+  }
+
+  realtimePoints(pointIds?: string[]) {
+    let params = new HttpParams();
+    for (const id of pointIds ?? []) {
+      params = params.append('pointIds', id);
+    }
+    return this.http.get<any[]>(`${this.baseUrl}/realtime/points`, { params });
+  }
+
   ingestMeasurement(payload: {
     pointId: string;
     sensorId: string;
@@ -42,6 +54,10 @@ export class BffApiService {
 
   advanceTicket(id: number) {
     return this.http.post<any>(`${this.baseUrl}/tickets/${id}/advance`, {});
+  }
+
+  assignTicket(id: number, assignee: string) {
+    return this.http.post<any>(`${this.baseUrl}/tickets/${id}/assign`, { assignee });
   }
 
   history(pointId: string, type: 'PRESSURE' | 'FLOW' | 'LEVEL', from: string, to: string) {

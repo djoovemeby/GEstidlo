@@ -2,13 +2,14 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { BffApiService } from '../api/bff-api.service';
+import { TranslatePipe } from '../i18n/translate.pipe';
 
 @Component({
   selector: 'app-history-page',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, TranslatePipe],
   template: `
-    <h2>Historique (UC-04)</h2>
+    <h2>{{ 'history.title' | t }}</h2>
 
     <section class="card">
       <div class="row">
@@ -25,15 +26,15 @@ import { BffApiService } from '../api/bff-api.service';
           </select>
         </label>
         <label>
-          From (ISO)
+          {{ 'history.from' | t }}
           <input [(ngModel)]="from" />
         </label>
         <label>
-          To (ISO)
+          {{ 'history.to' | t }}
           <input [(ngModel)]="to" />
         </label>
       </div>
-      <button class="btn" (click)="load()">Charger</button>
+      <button class="btn" (click)="load()">{{ 'common.load' | t }}</button>
     </section>
 
     <div class="table-wrap" *ngIf="data?.length">
@@ -57,7 +58,7 @@ import { BffApiService } from '../api/bff-api.service';
       </table>
     </div>
 
-    <p class="muted" *ngIf="data && data.length === 0">Pas de données sur cette période.</p>
+    <p class="muted" *ngIf="data && data.length === 0">{{ 'history.noData' | t }}</p>
   `,
   styles: []
 })
