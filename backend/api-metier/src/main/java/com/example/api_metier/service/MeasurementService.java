@@ -5,8 +5,10 @@ import com.example.api_metier.domain.AlertSeverity;
 import com.example.api_metier.domain.AlertStatus;
 import com.example.api_metier.domain.MeasurementEntity;
 import com.example.api_metier.domain.MeasurementType;
+import com.example.api_metier.domain.ThresholdConfigEntity;
 import com.example.api_metier.repo.AlertRepository;
 import com.example.api_metier.repo.MeasurementRepository;
+import com.example.api_metier.repo.ThresholdConfigRepository;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -22,21 +24,24 @@ public class MeasurementService {
 
 	private final MeasurementRepository measurements;
 	private final AlertRepository alerts;
-	private final double minPressureWarn;
-	private final double minPressureCrit;
-	private final double minLevelCrit;
+	private final ThresholdConfigRepository thresholdConfigs;
+	private final double defaultMinPressureWarn;
+	private final double defaultMinPressureCrit;
+	private final double defaultMinLevelCrit;
 
 	public MeasurementService(
 			MeasurementRepository measurements,
 			AlertRepository alerts,
+			ThresholdConfigRepository thresholdConfigs,
 			@Value("${gestidlo.threshold.pressure.minWarn}") double minPressureWarn,
 			@Value("${gestidlo.threshold.pressure.minCrit}") double minPressureCrit,
 			@Value("${gestidlo.threshold.level.minCrit}") double minLevelCrit) {
 		this.measurements = measurements;
 		this.alerts = alerts;
-		this.minPressureWarn = minPressureWarn;
-		this.minPressureCrit = minPressureCrit;
-		this.minLevelCrit = minLevelCrit;
+		this.thresholdConfigs = thresholdConfigs;
+		this.defaultMinPressureWarn = minPressureWarn;
+		this.defaultMinPressureCrit = minPressureCrit;
+		this.defaultMinLevelCrit = minLevelCrit;
 	}
 
 	@Transactional
@@ -109,21 +114,27 @@ public class MeasurementService {
 	}
 
 	private AlertDecision decidePressureAlert(double value, String unit) {
-		if (value < minPressureCrit) {
+		ThresholdConfigEntity cfg = thresholdConfigs.findById(MeasurementType.PRESSURE).orElse(null);
+		double minCrit = cfg != null && cfg.getMinCrit() != null ? cfg.getMinCrit() : defaultMinPressureCrit;
+		double minWarn = cfg != null && cfg.getMinWarn() != null ? cfg.getMinWarn() : defaultMinPressureWarn;
+
+		if (value < minCrit) {
 			return new AlertDecision(AlertSeverity.CRIT,
-					"Sous-pression critique: " + value + " " + unit + " (min " + minPressureCrit + ")");
+					"Sous-pression critique: " + value + " " + unit + " (min " + minCrit + ")");
 		}
-		if (value < minPressureWarn) {
+		if (value < minWarn) {
 			return new AlertDecision(AlertSeverity.WARN,
-					"Sous-pression: " + value + " " + unit + " (min " + minPressureWarn + ")");
+					"Sous-pression: " + value + " " + unit + " (min " + minWarn + ")");
 		}
 		return null;
 	}
 
 	private AlertDecision decideLevelAlert(double value, String unit) {
-		if (value < minLevelCrit) {
+		ThresholdConfigEntity cfg = thresholdConfigs.findById(MeasurementType.LEVEL).orElse(null);
+		double minCrit = cfg != null && cfg.getMinCrit() != null ? cfg.getMinCrit() : defaultMinLevelCrit;
+		if (value < minCrit) {
 			return new AlertDecision(AlertSeverity.CRIT,
-					"Niveau critique: " + value + " " + unit + " (min " + minLevelCrit + ")");
+					"Niveau critique: " + value + " " + unit + " (min " + minCrit + ")");
 		}
 		return null;
 	}

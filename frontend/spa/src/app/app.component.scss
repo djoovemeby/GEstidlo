@@ -32,6 +32,52 @@
   color: rgba(15, 23, 42, 0.85);
 }
 
+.links {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.theme {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid rgba(2, 6, 23, 0.12);
+  background: rgba(15, 23, 42, 0.04);
+  border-radius: 999px;
+  padding: 0.35rem 0.6rem;
+  cursor: pointer;
+  font-weight: 700;
+  color: rgba(15, 23, 42, 0.85);
+}
+
+.lang {
+  border: 1px solid rgba(2, 6, 23, 0.12);
+  background: rgba(15, 23, 42, 0.04);
+  border-radius: 999px;
+  padding: 0.35rem 0.6rem;
+  cursor: pointer;
+  font-weight: 900;
+  color: rgba(15, 23, 42, 0.85);
+}
+
+:host-context(html[data-theme='dark']) .lang {
+  border-color: rgba(226, 232, 240, 0.16);
+  background: rgba(226, 232, 240, 0.08);
+  color: rgba(226, 232, 240, 0.92);
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.25);
+}
+
+.dot--on {
+  background: rgba(37, 99, 235, 1);
+}
+
 .nav a:hover,
 .links a:hover {
   background: rgba(15, 23, 42, 0.06);

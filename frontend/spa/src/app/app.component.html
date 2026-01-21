@@ -1,17 +1,29 @@
 <header class="topbar">
   <div class="brand">GEstidlo MVP</div>
   <nav class="nav">
-    <a routerLink="/dashboard" routerLinkActive="active">Dashboard</a>
-    <a routerLink="/alerts" routerLinkActive="active">Alertes</a>
-    <a routerLink="/tickets" routerLinkActive="active">Tickets</a>
-    <a routerLink="/processes" routerLinkActive="active">Process</a>
-    <a routerLink="/history" routerLinkActive="active">Historique</a>
+    <a routerLink="/dashboard" routerLinkActive="active">{{ 'nav.dashboard' | t }}</a>
+    <a routerLink="/alerts" routerLinkActive="active">{{ 'nav.alerts' | t }}</a>
+    <a routerLink="/tickets" routerLinkActive="active">{{ 'nav.tickets' | t }}</a>
+    <a routerLink="/points" routerLinkActive="active">{{ 'nav.points' | t }}</a>
+    <a routerLink="/processes" routerLinkActive="active">{{ 'nav.processes' | t }}</a>
+    <a routerLink="/history" routerLinkActive="active">{{ 'nav.history' | t }}</a>
   </nav>
   <div class="links">
-    <a href="http://localhost:9080/camunda/app/cockpit/default/" target="_blank">Cockpit</a>
+    <a href="http://localhost:9080/camunda/app/cockpit/default/" target="_blank">{{ 'nav.cockpit' | t }}</a>
+
+    <select class="lang" [(ngModel)]="locale" (ngModelChange)="setLocale($any($event))">
+      <option *ngFor="let l of locales" [value]="l.locale">{{ l.label }}</option>
+    </select>
+
+    <button class="theme" type="button" (click)="toggleTheme()">
+      <span class="dot" [class.dot--on]="isDark"></span>
+      {{ isDark ? ('nav.theme.dark' | t) : ('nav.theme.light' | t) }}
+    </button>
   </div>
 </header>
 
 <main class="container">
   <router-outlet></router-outlet>
 </main>
+
+<app-toast-container />

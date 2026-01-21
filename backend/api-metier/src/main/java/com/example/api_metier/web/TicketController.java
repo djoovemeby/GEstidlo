@@ -5,6 +5,7 @@ import com.example.api_metier.domain.TicketStatus;
 import com.example.api_metier.repo.TicketRepository;
 import com.example.api_metier.service.TicketService;
 import com.example.api_metier.service.TicketService.CreateTicketRequest;
+import com.example.api_metier.web.dto.AssignTicketRequest;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -40,5 +41,9 @@ public class TicketController {
 	public TicketEntity advance(@PathVariable("id") Long id) {
 		return ticketService.advance(id);
 	}
-}
 
+	@PostMapping("/{id}/assign")
+	public TicketEntity assign(@PathVariable("id") Long id, @RequestBody AssignTicketRequest request) {
+		return ticketService.assign(id, request.assignee());
+	}
+}
