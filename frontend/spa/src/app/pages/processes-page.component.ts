@@ -1,8 +1,13 @@
-import { Component } from '@angular/core';
+import { Component, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { BffApiService } from '../api/bff-api.service';
 import { TranslatePipe } from '../i18n/translate.pipe';
+import { ProfileService } from '../profile.service';
+import { RefreshService } from '../refresh.service';
+import { Subscription } from 'rxjs';
+import { ToastService } from '../ui/toast.service';
+import { I18nService } from '../i18n/i18n.service';
 
 type ProcessDefinition = {
   id: string;
@@ -28,41 +33,36 @@ type CamundaTask = {
 
     <section class="card">
       <div class="row">
-        <button class="btn btn--secondary" (click)="reload()">{{ 'common.refresh' | t }}</button>
         <label>
           {{ 'processes.assignee' | t }}
           <input [(ngModel)]="assignee" />
         </label>
       </div>
 
-      <div class="table-wrap" *ngIf="definitions?.length">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>Key</th>
-              <th>Name</th>
-              <th>Version</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let d of definitions">
-              <td><code>{{ d.key }}</code></td>
-              <td>{{ d.name || '-' }}</td>
-              <td>{{ d.version || '-' }}</td>
-              <td class="actions">
-                <button class="btn" (click)="start(d.key)">{{ 'processes.start' | t }}</button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="process-grid" *ngIf="definitions?.length">
+        <div class="process-card" *ngFor="let d of definitions">
+          <div style="display: flex; align-items: start; justify-content: space-between; gap: 0.75rem">
+            <div>
+              <div style="font-weight: 1000">{{ d.name || d.key }}</div>
+              <div class="muted" style="margin-top: 0.15rem">
+                <code>{{ d.key }}</code>
+                <span *ngIf="d.version"> • v{{ d.version }}</span>
+              </div>
+            </div>
+            <span class="badge badge--ok">READY</span>
+          </div>
+
+          <div class="actions" style="margin-top: 0.75rem">
+            <button class="btn" (click)="start(d.key)">{{ 'processes.start' | t }}</button>
+          </div>
+        </div>
       </div>
 
-      <p *ngIf="definitions && definitions.length === 0" class="muted">Aucun process trouvé.</p>
+      <p *ngIf="definitions && definitions.length === 0" class="muted">{{ 'processes.none' | t }}</p>
     </section>
 
     <section class="card">
-      <h3>Instance & tâches</h3>
+      <h3 style="margin-top: 0">{{ 'processes.tasksTitle' | t }}</h3>
 
       <div class="row">
         <label>
@@ -74,56 +74,75 @@ type CamundaTask = {
         </button>
       </div>
 
-      <div class="table-wrap" *ngIf="tasks?.length">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>Task</th>
-              <th>Assignee</th>
-              <th>Created</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let t of tasks">
-              <td>
-                <div style="font-weight: 700">{{ t.name || 'Task' }}</div>
-                <div class="muted"><code>{{ t.id }}</code></div>
-              </td>
-              <td>{{ t.assignee || '-' }}</td>
-              <td>{{ t.created || '-' }}</td>
-              <td class="actions">
-                <button class="btn" (click)="complete(t.id)">{{ 'processes.complete' | t }}</button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="task-grid" *ngIf="tasks?.length">
+        <div class="task-card" *ngFor="let t of tasks">
+          <div style="display: flex; align-items: start; justify-content: space-between; gap: 0.75rem">
+            <div>
+              <div style="font-weight: 1000">{{ t.name || 'Task' }}</div>
+              <div class="muted" style="margin-top: 0.15rem"><code>{{ shortId(t.id) }}</code></div>
+            </div>
+            <span class="badge" [class.badge--warn]="!t.assignee" [class.badge--ok]="!!t.assignee">
+              {{ t.assignee || 'UNASSIGNED' }}
+            </span>
+          </div>
+
+          <div class="muted" style="margin-top: 0.5rem">{{ t.created || '-' }}</div>
+
+          <div class="actions" style="margin-top: 0.75rem">
+            <button class="btn" (click)="complete(t.id)">{{ 'processes.complete' | t }}</button>
+          </div>
+        </div>
       </div>
 
       <p *ngIf="tasks && tasks.length === 0" class="muted">Aucune tâche active pour cette instance.</p>
     </section>
 
-    <section class="card" *ngIf="lastStart">
-      <h3>Dernier démarrage</h3>
-      <pre>{{ lastStart | json }}</pre>
-    </section>
+    <details class="card" *ngIf="lastStart" style="overflow: hidden">
+      <summary class="muted" style="cursor: pointer; font-weight: 900">{{ 'processes.lastStart' | t }}</summary>
+      <pre style="margin-top: 0.75rem">{{ lastStart | json }}</pre>
+    </details>
   `
 })
-export class ProcessesPageComponent {
+export class ProcessesPageComponent implements OnDestroy {
   definitions: ProcessDefinition[] = [];
   tasks: CamundaTask[] = [];
   assignee = 'tech';
 
+  private refreshSubscription?: Subscription;
+
   processInstanceId = '';
   lastStart: any;
 
-  constructor(private readonly api: BffApiService) {
+  constructor(
+    private readonly api: BffApiService,
+    private readonly profile: ProfileService,
+    private readonly refresh: RefreshService,
+    private readonly toast: ToastService,
+    private readonly i18n: I18nService
+  ) {
+    this.assignee = this.profile.getTechnicianName() || this.assignee;
     this.reload();
+
+    this.refreshSubscription = this.refresh.refresh$.subscribe((e) => {
+      const showErrorToast = e.reason === 'manual';
+      this.reload(showErrorToast);
+      if (this.processInstanceId) {
+        this.loadTasks(showErrorToast);
+      }
+    });
   }
 
-  reload() {
-    this.api.processDefinitions().subscribe((defs) => {
-      this.definitions = defs;
+  reload(showErrorToast = false) {
+    this.api.processDefinitions().subscribe({
+      next: (defs) => {
+        this.definitions = defs;
+      },
+      error: () => {
+        if (showErrorToast) {
+          this.toast.push('error', this.i18n.t('toast.failed'));
+        }
+        this.definitions = [];
+      }
     });
   }
 
@@ -137,13 +156,31 @@ export class ProcessesPageComponent {
     });
   }
 
-  loadTasks() {
-    this.api.tasks(this.processInstanceId).subscribe((tasks) => {
-      this.tasks = tasks;
+  loadTasks(showErrorToast = false) {
+    this.api.tasks(this.processInstanceId).subscribe({
+      next: (tasks) => {
+        this.tasks = tasks;
+      },
+      error: () => {
+        if (showErrorToast) {
+          this.toast.push('error', this.i18n.t('toast.failed'));
+        }
+        this.tasks = [];
+      }
     });
   }
 
   complete(taskId: string) {
     this.api.completeTask(taskId).subscribe(() => this.loadTasks());
+  }
+
+  shortId(id: string): string {
+    if (!id) return '-';
+    if (id.length <= 16) return id;
+    return `${id.slice(0, 8)}…${id.slice(-4)}`;
+  }
+
+  ngOnDestroy(): void {
+    this.refreshSubscription?.unsubscribe();
   }
 }

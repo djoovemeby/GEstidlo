@@ -1,14 +1,15 @@
 package com.example.api_metier.web;
 
-import com.example.api_metier.domain.MeasurementType;
 import com.example.api_metier.domain.PointRefEntity;
-import com.example.api_metier.domain.PointType;
 import com.example.api_metier.domain.ReferenceCodeItemEntity;
 import com.example.api_metier.domain.ReferenceCodeItemId;
 import com.example.api_metier.domain.ThresholdConfigEntity;
+import com.example.api_metier.repo.AlertRepository;
+import com.example.api_metier.repo.MeasurementRepository;
 import com.example.api_metier.repo.PointRefRepository;
 import com.example.api_metier.repo.ReferenceCodeItemRepository;
 import com.example.api_metier.repo.ThresholdConfigRepository;
+import com.example.api_metier.repo.TicketRepository;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -27,14 +28,23 @@ public class ReferenceController {
 	private final PointRefRepository points;
 	private final ThresholdConfigRepository thresholds;
 	private final ReferenceCodeItemRepository codeItems;
+	private final MeasurementRepository measurements;
+	private final AlertRepository alerts;
+	private final TicketRepository tickets;
 
 	public ReferenceController(
 			PointRefRepository points,
 			ThresholdConfigRepository thresholds,
-			ReferenceCodeItemRepository codeItems) {
+			ReferenceCodeItemRepository codeItems,
+			MeasurementRepository measurements,
+			AlertRepository alerts,
+			TicketRepository tickets) {
 		this.points = points;
 		this.thresholds = thresholds;
 		this.codeItems = codeItems;
+		this.measurements = measurements;
+		this.alerts = alerts;
+		this.tickets = tickets;
 	}
 
 	@GetMapping("/points")
@@ -47,12 +57,14 @@ public class ReferenceController {
 		PointRefEntity entity = points.findById(id).orElseGet(() -> new PointRefEntity(
 				id,
 				id,
-				PointType.KIOSK,
+				"KIOSK",
 				null,
 				true));
 
 		entity.setName(body.name() == null || body.name().isBlank() ? id : body.name());
-		entity.setType(body.type() == null ? entity.getType() : body.type());
+		String type = body.type() == null || body.type().isBlank() ? entity.getType() : body.type().trim().toUpperCase();
+		validatePointType(type);
+		entity.setType(type);
 		entity.setDescription(body.description());
 		entity.setActive(body.active() == null ? entity.isActive() : body.active());
 
@@ -62,6 +74,14 @@ public class ReferenceController {
 	@DeleteMapping("/points/{id}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	public void deletePoint(@PathVariable("id") String id) {
+		long measurementsCount = measurements.countByPointId(id);
+		long alertsCount = alerts.countByPointId(id);
+		long ticketsCount = tickets.countByPointId(id);
+		if (measurementsCount > 0 || alertsCount > 0 || ticketsCount > 0) {
+			throw new org.springframework.web.server.ResponseStatusException(
+					HttpStatus.CONFLICT,
+					"Cannot delete point in use: " + id);
+		}
 		points.deleteById(id);
 	}
 
@@ -72,7 +92,7 @@ public class ReferenceController {
 
 	@PutMapping("/thresholds/{type}")
 	public ThresholdDto upsertThreshold(
-			@PathVariable("type") MeasurementType type,
+			@PathVariable("type") String type,
 			@RequestBody ThresholdUpsertRequest body) {
 		ThresholdConfigEntity entity = thresholds.findById(type)
 				.orElseGet(() -> new ThresholdConfigEntity(type, null, null));
@@ -115,13 +135,38 @@ public class ReferenceController {
 	@DeleteMapping("/codelists/{listName}/{code}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	public void deleteCodeItem(@PathVariable("listName") String listName, @PathVariable("code") String code) {
-		codeItems.deleteById(new ReferenceCodeItemId(listName, code));
+		ReferenceCodeItemId id = new ReferenceCodeItemId(listName, code);
+		if (!codeItems.existsById(id)) {
+			return;
+		}
+
+		if ("MEASUREMENT_TYPE".equals(listName)) {
+			long measurementsCount = measurements.countByType(code);
+			long alertsCount = alerts.countByType(code);
+			boolean hasThreshold = thresholds.existsById(code);
+			if (measurementsCount > 0 || alertsCount > 0 || hasThreshold) {
+				throw new org.springframework.web.server.ResponseStatusException(
+						HttpStatus.CONFLICT,
+						"Cannot delete measurement type in use: " + code);
+			}
+		}
+
+		if ("POINT_TYPE".equals(listName)) {
+			long pointsCount = points.countByType(code);
+			if (pointsCount > 0) {
+				throw new org.springframework.web.server.ResponseStatusException(
+						HttpStatus.CONFLICT,
+						"Cannot delete point type in use: " + code);
+			}
+		}
+
+		codeItems.deleteById(id);
 	}
 
-	public record PointUpsertRequest(String name, PointType type, String description, Boolean active) {
+	public record PointUpsertRequest(String name, String type, String description, Boolean active) {
 	}
 
-	public record PointDto(String id, String name, PointType type, String description, boolean active) {
+	public record PointDto(String id, String name, String type, String description, boolean active) {
 		public static PointDto from(PointRefEntity e) {
 			return new PointDto(e.getId(), e.getName(), e.getType(), e.getDescription(), e.isActive());
 		}
@@ -130,7 +175,7 @@ public class ReferenceController {
 	public record ThresholdUpsertRequest(Double minWarn, Double minCrit) {
 	}
 
-	public record ThresholdDto(MeasurementType type, Double minWarn, Double minCrit) {
+	public record ThresholdDto(String type, Double minWarn, Double minCrit) {
 		public static ThresholdDto from(ThresholdConfigEntity e) {
 			return new ThresholdDto(e.getType(), e.getMinWarn(), e.getMinCrit());
 		}
@@ -167,6 +212,17 @@ public class ReferenceController {
 				e.getColor(),
 				e.getSortOrder(),
 				e.isActive());
+		}
+	}
+
+	private void validatePointType(String type) {
+		if (type == null || type.isBlank()) {
+			throw new org.springframework.web.server.ResponseStatusException(HttpStatus.BAD_REQUEST, "type is required");
+		}
+		ReferenceCodeItemId id = new ReferenceCodeItemId("POINT_TYPE", type);
+		ReferenceCodeItemEntity item = codeItems.findById(id).orElse(null);
+		if (item == null || !item.isActive()) {
+			throw new org.springframework.web.server.ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown point type: " + type);
 		}
 	}
 }

@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { BffApiService } from '../api/bff-api.service';
@@ -7,6 +7,9 @@ import { ToastService } from '../ui/toast.service';
 import { I18nService } from '../i18n/i18n.service';
 import { PointsService } from '../points.service';
 import { RouterLink } from '@angular/router';
+import { RefreshService } from '../refresh.service';
+import { Subscription } from 'rxjs';
+import { MeasurementTypesService } from '../measurement-types.service';
 
 @Component({
   selector: 'app-alerts-page',
@@ -20,7 +23,6 @@ import { RouterLink } from '@angular/router';
         {{ 'alerts.assignee' | t }}
         <input [(ngModel)]="assignee" />
       </label>
-      <button class="btn btn--secondary" (click)="reload()">{{ 'common.refresh' | t }}</button>
     </div>
 
     <table class="table" *ngIf="alerts?.length">
@@ -44,7 +46,7 @@ import { RouterLink } from '@angular/router';
             </a>
             <div class="muted"><code>{{ a.pointId }}</code></div>
           </td>
-          <td>{{ a.type }}</td>
+          <td>{{ typeLabel(a.type) }}</td>
           <td>
             <span
               class="badge"
@@ -56,37 +58,62 @@ import { RouterLink } from '@angular/router';
           </td>
           <td>{{ a.status }}</td>
           <td>{{ a.message }}</td>
-          <td class="actions">
-            <button class="btn btn--secondary" (click)="ack(a.id)">{{ 'alerts.ack' | t }}</button>
-            <button class="btn" (click)="createTicket(a.id)">{{ 'alerts.createTicket' | t }}</button>
+          <td class="actions-cell">
+            <div class="actions actions--table">
+              <button class="btn btn--secondary" (click)="ack(a.id)">{{ 'alerts.ack' | t }}</button>
+              <button class="btn" (click)="createTicket(a.id)">{{ 'alerts.createTicket' | t }}</button>
+            </div>
           </td>
         </tr>
       </tbody>
     </table>
 
-    <p *ngIf="alerts && alerts.length === 0">{{ 'alerts.noneActive' | t }}</p>
+    <div class="empty-state" *ngIf="alerts && alerts.length === 0">
+      <div>
+        <div class="empty-title">{{ 'alerts.noneActive' | t }}</div>
+        <div class="muted">{{ 'empty.tip.simulation' | t }}</div>
+      </div>
+      <a class="btn btn--secondary" routerLink="/dashboard">{{ 'empty.openDashboard' | t }}</a>
+    </div>
   `,
   styles: []
 })
-export class AlertsPageComponent {
+export class AlertsPageComponent implements OnDestroy {
   alerts: any[] = [];
   assignee = 'tech';
+
+  private refreshSubscription?: Subscription;
 
   constructor(
     private readonly api: BffApiService,
     private readonly toast: ToastService,
     private readonly i18n: I18nService,
-    private readonly points: PointsService
+    private readonly points: PointsService,
+    private readonly measurementTypes: MeasurementTypesService,
+    private readonly refresh: RefreshService
   ) {
+    this.measurementTypes.ensureLoaded().subscribe();
     this.reload();
+    this.refreshSubscription = this.refresh.refresh$.subscribe((e) => this.reload(e.reason === 'manual'));
   }
 
   pointLabel(pointId: string): string {
     return this.points.label(pointId);
   }
 
-  reload() {
-    this.api.alerts('ACTIVE').subscribe((a) => (this.alerts = a));
+  typeLabel(type: string): string {
+    return this.measurementTypes.label(type);
+  }
+
+  reload(showErrorToast = false) {
+    this.api.alerts('ACTIVE').subscribe({
+      next: (a) => (this.alerts = a),
+      error: () => {
+        if (showErrorToast) {
+          this.toast.push('error', this.i18n.t('toast.failed'));
+        }
+      }
+    });
   }
 
   ack(id: number) {
@@ -107,5 +134,9 @@ export class AlertsPageComponent {
       },
       error: () => this.toast.push('error', this.i18n.t('toast.failed'))
     });
+  }
+
+  ngOnDestroy(): void {
+    this.refreshSubscription?.unsubscribe();
   }
 }

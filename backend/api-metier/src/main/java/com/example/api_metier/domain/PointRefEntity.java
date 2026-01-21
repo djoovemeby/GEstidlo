@@ -2,8 +2,6 @@ package com.example.api_metier.domain;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
@@ -18,9 +16,8 @@ public class PointRefEntity {
 	@Column(nullable = false)
 	private String name;
 
-	@Enumerated(EnumType.STRING)
 	@Column(nullable = false)
-	private PointType type;
+	private String type;
 
 	@Column
 	private String description;
@@ -31,7 +28,7 @@ public class PointRefEntity {
 	protected PointRefEntity() {
 	}
 
-	public PointRefEntity(String id, String name, PointType type, String description, boolean active) {
+	public PointRefEntity(String id, String name, String type, String description, boolean active) {
 		this.id = id;
 		this.name = name;
 		this.type = type;
@@ -51,11 +48,11 @@ public class PointRefEntity {
 		this.name = name;
 	}
 
-	public PointType getType() {
+	public String getType() {
 		return type;
 	}
 
-	public void setType(PointType type) {
+	public void setType(String type) {
 		this.type = type;
 	}
 
@@ -75,4 +72,3 @@ public class PointRefEntity {
 		this.active = active;
 	}
 }
-

@@ -2,8 +2,6 @@ package com.example.api_metier.domain;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -27,9 +25,8 @@ public class MeasurementEntity {
 	@Column(nullable = false)
 	private String sensorId;
 
-	@Enumerated(EnumType.STRING)
 	@Column(nullable = false)
-	private MeasurementType type;
+	private String type;
 
 	@Column(name = "val", nullable = false)
 	private double value;
@@ -43,7 +40,7 @@ public class MeasurementEntity {
 	protected MeasurementEntity() {
 	}
 
-	public MeasurementEntity(String pointId, String sensorId, MeasurementType type, double value, String unit,
+	public MeasurementEntity(String pointId, String sensorId, String type, double value, String unit,
 			Instant timestamp) {
 		this.pointId = pointId;
 		this.sensorId = sensorId;
@@ -65,7 +62,7 @@ public class MeasurementEntity {
 		return sensorId;
 	}
 
-	public MeasurementType getType() {
+	public String getType() {
 		return type;
 	}
 

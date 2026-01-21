@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -9,6 +9,9 @@ import { LineChartComponent } from '../ui/line-chart.component';
 import { ToastService } from '../ui/toast.service';
 import { I18nService } from '../i18n/i18n.service';
 import { ProfileService } from '../profile.service';
+import { RefreshService } from '../refresh.service';
+import { Subscription } from 'rxjs';
+import { MeasurementTypesService } from '../measurement-types.service';
 
 type AlertDto = {
   id: number;
@@ -30,7 +33,7 @@ type TicketDto = {
 
 type RealtimePointDto = {
   pointId: string;
-  lastMeasurements: Record<string, { value: number; unit: string; timestamp: string }>;
+  lastMeasurements: Record<string, { value: number; unit: string; timestamp: string } | undefined>;
 };
 
 type HistoryRowDto = {
@@ -64,15 +67,15 @@ type HistoryRowDto = {
                   <th>{{ 'table.type' | t }}</th>
                   <th>{{ 'dashboard.simulate.value' | t }}</th>
                   <th>{{ 'dashboard.simulate.unit' | t }}</th>
-                  <th>Timestamp</th>
+                  <th>{{ 'table.timestamp' | t }}</th>
                 </tr>
               </thead>
               <tbody>
-                <tr *ngFor="let key of ['PRESSURE','LEVEL','FLOW']">
-                  <td><code>{{ key }}</code></td>
-                  <td style="font-weight: 900">{{ realtime.lastMeasurements?.[key]?.value ?? '-' }}</td>
-                  <td>{{ realtime.lastMeasurements?.[key]?.unit ?? '' }}</td>
-                  <td class="muted"><code>{{ realtime.lastMeasurements?.[key]?.timestamp ?? '' }}</code></td>
+                <tr *ngFor="let key of measurementKeys">
+                  <td>{{ typeLabel(key) }}</td>
+                  <td style="font-weight: 900">{{ realtime.lastMeasurements[key]?.value ?? '-' }}</td>
+                  <td>{{ realtime.lastMeasurements[key]?.unit ?? '' }}</td>
+                  <td class="muted"><code>{{ realtime.lastMeasurements[key]?.timestamp ?? '' }}</code></td>
                 </tr>
               </tbody>
             </table>
@@ -121,8 +124,10 @@ type HistoryRowDto = {
                       >
                     </td>
                     <td>{{ a.message }}</td>
-                    <td class="actions">
-                      <button class="btn" (click)="createTicket(a.id)">{{ 'alerts.createTicket' | t }}</button>
+                    <td class="actions-cell">
+                      <div class="actions actions--table">
+                        <button class="btn" (click)="createTicket(a.id)">{{ 'alerts.createTicket' | t }}</button>
+                      </div>
                     </td>
                   </tr>
                 </tbody>
@@ -161,11 +166,13 @@ type HistoryRowDto = {
                       </span>
                     </td>
                     <td>{{ t.assignee || '-' }}</td>
-                    <td class="actions">
-                      <button class="btn btn--secondary" (click)="assign(t.id)">{{ 'tickets.takeOver' | t }}</button>
-                      <button class="btn" [disabled]="t.status === 'CLOSED'" (click)="advance(t.id)">
-                        {{ actionLabel(t.status) | t }}
-                      </button>
+                    <td class="actions-cell">
+                      <div class="actions actions--table">
+                        <button class="btn btn--secondary" (click)="assign(t.id)">{{ 'tickets.takeOver' | t }}</button>
+                        <button class="btn" [disabled]="t.status === 'CLOSED'" (click)="advance(t.id)">
+                          {{ actionLabel(t.status) | t }}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 </tbody>
@@ -178,9 +185,13 @@ type HistoryRowDto = {
     </section>
   `
 })
-export class PointDetailsPageComponent {
+export class PointDetailsPageComponent implements OnDestroy {
   pointId = '';
   pointName = '';
+
+  private refreshSubscription?: Subscription;
+  private measurementTypesSubscription?: Subscription;
+  private pointsSubscription?: Subscription;
 
   realtime?: RealtimePointDto;
   alerts: AlertDto[] = [];
@@ -191,46 +202,104 @@ export class PointDetailsPageComponent {
 
   technician = '';
 
+  measurementKeys: string[] = [];
+
   constructor(
     route: ActivatedRoute,
     private readonly points: PointsService,
     private readonly api: BffApiService,
     private readonly toast: ToastService,
     private readonly i18n: I18nService,
-    private readonly profile: ProfileService
+    private readonly profile: ProfileService,
+    private readonly measurementTypes: MeasurementTypesService,
+    private readonly refresh: RefreshService
   ) {
     this.technician = this.profile.getTechnicianName();
+
+    this.points.ensureLoaded().subscribe();
+    this.pointsSubscription = this.points.stream().subscribe(() => {
+      if (!this.pointId) {
+        return;
+      }
+      this.pointName = this.points.label(this.pointId);
+    });
+
+    this.measurementTypes.ensureLoaded().subscribe();
+    this.measurementTypesSubscription = this.measurementTypes.stream().subscribe((types) => {
+      this.measurementKeys = (types ?? []).filter((t) => t.active).map((t) => t.code);
+    });
+
     route.params.subscribe((p) => {
       this.pointId = p['id'];
       this.pointName = this.points.label(this.pointId);
       this.reload();
       this.loadTrend();
     });
-  }
 
-  reload() {
-    this.api.realtimePoints([this.pointId]).subscribe((rows: RealtimePointDto[]) => {
-      this.realtime = rows?.[0];
-    });
-
-    this.api.alerts('ACTIVE').subscribe((alerts: AlertDto[]) => {
-      this.alerts = (alerts ?? []).filter((a) => a.pointId === this.pointId);
-    });
-
-    this.api.tickets().subscribe((tickets: TicketDto[]) => {
-      this.tickets = (tickets ?? []).filter((t) => t.pointId === this.pointId);
+    this.refreshSubscription = this.refresh.refresh$.subscribe((e) => {
+      if (!this.pointId) {
+        return;
+      }
+      const showErrorToast = e.reason === 'manual';
+      this.reload(showErrorToast);
+      this.loadTrend(showErrorToast);
     });
   }
 
-  loadTrend() {
+  reload(showErrorToast = false) {
+    let notified = false;
+    const notify = () => {
+      if (!showErrorToast || notified) {
+        return;
+      }
+      notified = true;
+      this.toast.push('error', this.i18n.t('toast.failed'));
+    };
+
+    this.api.realtimePoints([this.pointId]).subscribe({
+      next: (rows: RealtimePointDto[]) => {
+        this.realtime = rows[0];
+      },
+      error: () => notify()
+    });
+
+    this.api.alerts('ACTIVE').subscribe({
+      next: (alerts: AlertDto[]) => {
+        this.alerts = (alerts ?? []).filter((a) => a.pointId === this.pointId);
+      },
+      error: () => notify()
+    });
+
+    this.api.tickets().subscribe({
+      next: (tickets: TicketDto[]) => {
+        this.tickets = (tickets ?? []).filter((t) => t.pointId === this.pointId);
+      },
+      error: () => notify()
+    });
+  }
+
+  loadTrend(showErrorToast = false) {
     const to = new Date();
     const from = new Date(to.getTime() - this.trendHours * 60 * 60 * 1000);
-    this.api.history(this.pointId, 'PRESSURE', from.toISOString(), to.toISOString()).subscribe((rows) => {
-      const data = (rows as HistoryRowDto[])
-        .filter((r) => typeof r.value === 'number')
-        .map((r) => ({ timestamp: r.timestamp, value: r.value }));
-      this.pressureTrend = data;
+    this.api.history(this.pointId, 'PRESSURE', from.toISOString(), to.toISOString()).subscribe({
+      next: (rows) => {
+        const data = (rows as HistoryRowDto[])
+          .filter((r) => typeof r.value === 'number')
+          .map((r) => ({ timestamp: r.timestamp, value: r.value }));
+        this.pressureTrend = data;
+      },
+      error: () => {
+        if (showErrorToast) {
+          this.toast.push('error', this.i18n.t('toast.failed'));
+        }
+      }
     });
+  }
+
+  ngOnDestroy(): void {
+    this.refreshSubscription?.unsubscribe();
+    this.measurementTypesSubscription?.unsubscribe();
+    this.pointsSubscription?.unsubscribe();
   }
 
   saveTechnician() {
@@ -272,5 +341,8 @@ export class PointDetailsPageComponent {
     if (status === 'IN_PROGRESS') return 'tickets.close';
     return 'tickets.advance';
   }
-}
 
+  typeLabel(type: string): string {
+    return this.measurementTypes.label(type);
+  }
+}

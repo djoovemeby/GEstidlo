@@ -1,7 +1,6 @@
 package com.example.api_metier.web;
 
 import com.example.api_metier.domain.MeasurementEntity;
-import com.example.api_metier.domain.MeasurementType;
 import com.example.api_metier.service.MeasurementService;
 import java.time.Instant;
 import java.util.List;
@@ -24,10 +23,9 @@ public class HistoryController {
 	@GetMapping("/points/{pointId}")
 	public List<MeasurementEntity> history(
 			@PathVariable("pointId") String pointId,
-			@RequestParam("type") MeasurementType type,
+			@RequestParam("type") String type,
 			@RequestParam("from") Instant from,
 			@RequestParam("to") Instant to) {
 		return measurementService.history(pointId, type, from, to);
 	}
 }
-
